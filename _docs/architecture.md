@@ -24,14 +24,16 @@ tras especificar y groomear el backlog.
 | File storage | None — recordings are deleted after transcription | — |
 | Media processing | ffmpeg | 8.1 |
 | Transcription | OpenAI transcription API (speaker diarization) | SDK 2.45 |
-| Text model (clustering + extraction) | OpenAI, structured outputs (JSON schema) | SDK 2.45 |
+| LLM (clustering + extraction) | Claude (`claude-sonnet-5`) via `anthropic` SDK, structured JSON via forced tool use | SDK 1.0 |
 | Sessions / cache | Database-backed sessions, local-memory cache | — |
 | Tests / lint | pytest, pytest-django, ruff | 9.1 / 4.12 / 0.15 |
 | Deploy | Docker Compose — `web`, `worker`, `db` | — |
 
 **Postgres es la única dependencia de infraestructura.** Sin Redis, sin object
-store, sin servidor de correo, sin auth de terceros. Un solo SDK `openai` y una
-`OPENAI_API_KEY` cubren transcripción y extracción.
+store, sin servidor de correo, sin auth de terceros. Dos SDKs de IA: `openai`
+(solo transcripción, con `OPENAI_API_KEY`) y `anthropic` (clustering y
+extracción, con `ANTHROPIC_API_KEY`) — Claude no transcribe audio, así que
+la transcripción se queda en OpenAI por necesidad técnica, no por preferencia.
 
 Por qué estas decisiones:
 
@@ -63,8 +65,8 @@ board/           el island de React: vista, endpoint de estado, endpoints de mut
 ```
 
 `ai/` no tiene modelos ni vistas — expone funciones que reciben objetos de
-dominio y devuelven dicts planos. Eso mantiene cada llamada a OpenAI mockeable
-en tests y intercambiable por proveedor.
+dominio y devuelven dicts planos. Eso mantiene cada llamada de IA (OpenAI o
+Claude) mockeable en tests y intercambiable por proveedor.
 
 ## Modelo de datos
 
@@ -287,12 +289,14 @@ servicio `worker` de Compose corre el comando worker del paquete. Escalar es
 `docker compose up --scale worker=3`, y el row-claiming del backend evita que
 dos workers tomen el mismo job.
 
-## Las dos llamadas a OpenAI
+## Las dos llamadas de IA
 
-Ambas viven en `ai/`, ambas usan structured outputs (JSON schema), ambas
-producen **sugerencias que nunca son autoritativas** — coincide con la
-decisión del plan de que "las acciones y decisiones generadas por IA siguen
-siendo borrador hasta que el facilitador las confirma".
+Transcripción con OpenAI (Whisper); clustering y extracción con Claude
+(`claude-sonnet-5`, vía `anthropic` SDK, JSON estructurado forzando el uso de
+una tool). Ambas viven en `ai/`, ambas producen **sugerencias que nunca son
+autoritativas** — coincide con la decisión del plan de que "las acciones y
+decisiones generadas por IA siguen siendo borrador hasta que el facilitador
+las confirma".
 
 **Clustering** (al revelar): entran todas las tarjetas con
 `{id, category, text}`, sale una lista de `{name, card_ids}`. Se escriben como
@@ -325,8 +329,8 @@ valor — se puede borrar entre deploys. `db` guarda todo lo que importa, así
 que es lo único a respaldar.
 
 Config por variables de entorno: `DATABASE_URL`, `OPENAI_API_KEY`,
-`SECRET_KEY`, `ALLOWED_HOSTS`, `DEBUG`. Sin settings de correo, sin
-credenciales de storage.
+`ANTHROPIC_API_KEY`, `SECRET_KEY`, `ALLOWED_HOSTS`, `DEBUG`. Sin settings de
+correo, sin credenciales de storage.
 
 ## Preguntas abiertas
 
