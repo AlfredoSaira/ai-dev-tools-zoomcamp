@@ -8,25 +8,33 @@ tras especificar y groomear el backlog.
 
 ## Stack
 
+Versions pinned exactly as in `retroloop`'s own dependency files, verified
+2026-09-10 directly against its `pyproject.toml`, `package.json`, `Dockerfile`
+and vendored `static/vendor/` assets — not against "latest on PyPI/npm today",
+since the course deliberately pins specific versions rather than tracking
+latest. `*` = exception: `anthropic` has no course pin because `retroloop`
+itself uses OpenAI end-to-end; `1.0` is simply the latest available, chosen
+when this project deviated from the reference to use Claude for the LLM step.
+
 | Concern | Choice | Version |
 |---|---|---|
 | Language | Python | 3.14 |
-| Framework | Django | 6.0 |
+| Framework | Django | 6.0.7 |
 | Database | PostgreSQL | 18 |
-| DB driver | psycopg | 3.3 |
-| App server | gunicorn | 26.0 |
-| Templates / interactivity | Django templates + HTMX + Alpine.js | 2.0 / 3.15 |
-| Retro board | React island, Vite build, one Django template | 19.2 / 8.1 |
-| Styling | Tailwind (CSS-first config, no JS config file) | 4.3 |
+| DB driver | psycopg | 3.3.4 |
+| App server | gunicorn | 26.0.0 |
+| Templates / interactivity | Django templates + HTMX + Alpine.js | 2.0.10 / 3.15.12 |
+| Retro board | React island, Vite build, one Django template | 19.2.8 / 8.1.5 |
+| Styling | Tailwind (CSS-first config, no JS config file) | 4.3.3 |
 | Auth | `django.contrib.auth` — username + password, no email | — |
 | Invites | Shareable project join link (rotatable token) | — |
-| Background jobs | `django.tasks` + `django-tasks-db` (ORM backend) | 0.12 |
+| Background jobs | `django.tasks` + `django-tasks-db` (ORM backend) | 0.12.0 |
 | File storage | None — recordings are deleted after transcription | — |
-| Media processing | ffmpeg | 8.1 |
-| Transcription | OpenAI transcription API (speaker diarization) | SDK 2.45 |
-| LLM (clustering + extraction) | Claude (`claude-sonnet-5`) via `anthropic` SDK, structured JSON via forced tool use | SDK 1.0 |
+| Media processing | ffmpeg (static build, Debian's packaged version is older) | 8.1 |
+| Transcription | OpenAI Whisper (`whisper-1`, audio transcriptions API) | SDK 2.45.0 |
+| LLM (clustering + extraction) | Claude (`claude-sonnet-5`) via `anthropic` SDK, structured JSON via forced tool use | SDK 1.0 * |
 | Sessions / cache | Database-backed sessions, local-memory cache | — |
-| Tests / lint | pytest, pytest-django, ruff | 9.1 / 4.12 / 0.15 |
+| Tests / lint | pytest, pytest-django, ruff | 9.1.1 / 4.12.0 / 0.15.21 |
 | Deploy | Docker Compose — `web`, `worker`, `db` | — |
 
 **Postgres es la única dependencia de infraestructura.** Sin Redis, sin object
@@ -42,10 +50,13 @@ Por qué estas decisiones:
   Core solo incluye backends dummy e inmediato, así que producción necesita el
   paquete separado `django-tasks-db` para la cola respaldada por Postgres.
   Ver [El worker](#el-worker).
-- **La transcripción con diarización da etiquetas de hablante.** Saber quién
-  dijo qué es lo que hace confiable la extracción del *owner* de cada action
-  item — sin eso el modelo adivina la propiedad por contexto de la frase. Es
-  la mayor ganancia de precisión disponible en el pipeline.
+- **Whisper simple (`whisper-1`) no trae etiquetas de hablante.** El
+  transcript es texto plano, sin marcar quién dijo qué. La extracción de
+  *owner* por acción se apoya en que el modelo infiera la propiedad por
+  contexto de la frase ("yo me encargo de..."), no en un hablante etiquetado
+  — menos preciso que un modelo con diarización, pero más simple y barato.
+  Si la atribución de *owners* resulta poco confiable en la práctica, el
+  upgrade es cambiar el modelo de transcripción, no rediseñar el pipeline.
 - **El límite de tamaño de la API de transcripción sigue siendo la restricción
   real** del manejo de media. Bajar el audio a 16 kHz mono Opus con ffmpeg
   mantiene ~3 horas de habla por debajo del límite; grabaciones más largas se
@@ -257,8 +268,8 @@ navegador --POST multipart--> Django (streams a /scratch/<uuid>)
    |  1. ¿video? -> ffmpeg: extraer solo audio
    |  2. ffmpeg: bajar a 16 kHz mono Opus
    |  3. ¿supera el límite? -> dividir en chunks por silencios
-   |  4. transcripción con diarización por chunk        [TRANSCRIBING]
-   |     -> concatenar -> Transcript (con etiquetas de hablante)
+   |  4. Whisper (`whisper-1`) por chunk                 [TRANSCRIBING]
+   |     -> concatenar -> Transcript (texto plano, sin hablante)
    |     (texto pegado / archivo de transcript se saltan 1-4)
    |  5. BORRAR el archivo temporal, anular temp_path    <-- siempre, incluso en error
    |  6. extracción sobre el transcript                  [EXTRACTING]
@@ -303,12 +314,13 @@ las confirma".
 filas `Cluster` con `is_auto_generated=True`. El equipo edita libremente desde
 ahí — la bandera es solo para mostrar ("sugerido"), nunca para permisos.
 
-**Extracción** (después de transcribir): entran el transcript diarizado + la
-agenda priorizada + el roster del proyecto; salen decisiones, action items con
-nombre de owner, fechas límite, y un resumen. Las etiquetas de hablante hacen
-la mayor parte del trabajo aquí. Los nombres de owner se resuelven a filas
-`User` por fuzzy match contra el roster; un owner sin match queda `null` en
-vez de adivinar — el facilitador elige de un dropdown.
+**Extracción** (después de transcribir): entran el transcript (texto plano,
+sin hablante) + la agenda priorizada + el roster del proyecto; salen
+decisiones, action items con nombre de owner, fechas límite, y un resumen. Sin
+diarización, el modelo infiere el owner por contexto de la frase — menos
+confiable que con etiquetas de hablante. Los nombres de owner se resuelven a
+filas `User` por fuzzy match contra el roster; un owner sin match queda `null`
+en vez de adivinar — el facilitador elige de un dropdown.
 
 Todo llega como `DRAFT`. El paso de confirmación es una sola pantalla del
 facilitador con aceptar/editar/rechazar por ítem. Nada se publica hasta que
