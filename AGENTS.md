@@ -1,6 +1,10 @@
 Django app for weekly Start/Stop/Continue cycles and the retrospectives that
 follow.
 
+Documents
+
+- `_docs/process.md` - how work is organized
+
 Commands
 
 - `docker compose up` - full dev environment (db, web, worker)
