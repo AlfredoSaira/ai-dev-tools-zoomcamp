@@ -4,6 +4,7 @@ follow.
 Documents
 
 - `_docs/process.md` - how work is organized
+- `_docs/decisions.md` - calls made while grooming the backlog, so issues stop re-litigating them
 
 Commands
 
