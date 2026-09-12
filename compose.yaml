@@ -1,0 +1,56 @@
+name: candor
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: candor
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d candor"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web:
+    build: .
+    command: uv run manage.py runserver 0.0.0.0:8000
+    environment:
+      DEBUG: "true"
+      SECRET_KEY: django-insecure-development-only-key
+      ALLOWED_HOSTS: localhost,127.0.0.1,web
+      DATABASE_URL: postgres://postgres:postgres@db:5432/candor
+      SCRATCH_DIR: /scratch
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - scratch:/scratch
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: .
+    # Placeholder until issue #18 wires up django.tasks + django-tasks-db.
+    command: sh -c "echo worker placeholder - see issue 18 && sleep infinity"
+    environment:
+      DEBUG: "true"
+      SECRET_KEY: django-insecure-development-only-key
+      DATABASE_URL: postgres://postgres:postgres@db:5432/candor
+      SCRATCH_DIR: /scratch
+    volumes:
+      - .:/app
+      - scratch:/scratch
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  scratch:
