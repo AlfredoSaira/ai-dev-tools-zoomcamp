@@ -4,7 +4,9 @@ A mini kanban board — single user, one board, four fixed columns
 (New / To Do / In Progress / Done). Built for Homework 2 of
 [ai-dev-tools-zoomcamp](https://github.com/DataTalksClub/ai-dev-tools-zoomcamp).
 
-See [`_docs/specs.md`](_docs/specs.md) for the full spec.
+See [`_docs/specs.md`](_docs/specs.md) for the full spec and
+[`docs/ai-usage-report.md`](docs/ai-usage-report.md) for how AI was used to
+build it.
 
 ## Running locally
 
@@ -16,8 +18,8 @@ npm install
 npm run dev
 ```
 
-Opens at http://localhost:5173. The backend is currently mocked in
-`frontend/src/api.js` — no backend needs to be running yet.
+Opens at http://localhost:5173. It talks to the backend — start that too
+(see below) or the board will show a "can't reach the backend" message.
 
 ### Backend
 

@@ -7,6 +7,57 @@
   margin-bottom: 16px;
 }
 
+.load-error {
+  max-width: 420px;
+  margin: 80px auto;
+  text-align: center;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.load-error h2 {
+  margin-bottom: 10px;
+}
+
+.load-error p {
+  margin: 6px 0;
+  opacity: 0.8;
+  font-size: 14px;
+}
+
+.load-error code {
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.banner--error {
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.banner button {
+  border: none;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  font-size: 12px;
+}
+
 .summary {
   display: flex;
   align-items: center;
