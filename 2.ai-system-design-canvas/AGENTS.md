@@ -6,7 +6,13 @@ Documents
 
 Commands
 
-_(to be filled in as the frontend and backend are built)_
+- `cd frontend && npm run dev` - frontend dev server (http://localhost:5173)
+- `cd frontend && npm run build` - production build
+- `cd frontend && npm run lint` - oxlint
+- `cd backend && uv sync` - install backend dependencies
+- `cd backend && uv run fastapi dev src/boardly_backend/main.py` - backend dev server (http://localhost:8000, docs at /docs)
+- `cd backend && uv run pytest` - backend tests
+- `cd backend && uv run ruff check . && uv run ruff format --check .` - lint and format check, run before committing
 
 Rules
 
